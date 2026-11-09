@@ -78,22 +78,22 @@
       border-color: #30D158 !important;
     }
 
-    /* Safe-area insets padding simulation */
-    .safe-top {
-      padding-top: max(env(safe-area-inset-top), 12px);
+    /* iOS Notch & Dynamic Island Safe Area Inset Support */
+    .ios-safe-header {
+      padding-top: max(env(safe-area-inset-top, 20px), 48px);
     }
-    .safe-bottom {
-      padding-bottom: max(env(safe-area-inset-bottom), 16px);
+    .ios-safe-bottom {
+      padding-bottom: max(env(safe-area-inset-bottom, 16px), 24px);
     }
   </style>
 </head>
 <body class="bg-black text-[#F2F2F7] flex justify-center min-h-screen antialiased selection:bg-[#0A84FF]/30">
 
   <!-- iPhone Shell Wrapper (Responsive: Fullscreen on mobile, stylized phone container on desktop) -->
-  <div class="w-full max-w-md min-h-screen bg-black flex flex-col relative pb-24 shadow-2xl overflow-hidden border-x border-[#1C1C1E]/60">
+  <div class="w-full max-w-md min-h-screen bg-black flex flex-col relative pb-28 shadow-2xl overflow-hidden border-x border-[#1C1C1E]/60 ios-safe-bottom">
     
-    <!-- Top App Navigation Header -->
-    <header class="sticky top-0 z-40 ios-glass border-b border-[#2C2C2E]/60 px-5 pt-4 pb-3">
+    <!-- Top App Navigation Header with Dynamic Island & Notch clearance -->
+    <header class="sticky top-0 z-40 ios-glass border-b border-[#2C2C2E]/60 px-5 ios-safe-header pb-3">
       <!-- App Header & Title -->
       <div class="flex items-center justify-between">
         <div>
@@ -253,7 +253,7 @@
     <!-- iOS Bottom Sheet Modal (New Entry) -->
     <div id="entry-modal-backdrop" class="fixed inset-0 bg-black/75 z-50 opacity-0 pointer-events-none transition-opacity duration-300 flex items-end justify-center">
       <!-- Sheet Content -->
-      <div id="entry-modal-content" class="w-full max-w-md bg-[#1C1C1E] rounded-t-[28px] border-t border-zinc-700 p-5 pt-3 pb-8 transform translate-y-full sheet-transition shadow-2xl">
+      <div id="entry-modal-content" class="w-full max-w-md bg-[#1C1C1E] rounded-t-[28px] border-t border-zinc-700 p-5 pt-3 ios-safe-bottom transform translate-y-full sheet-transition shadow-2xl">
         <!-- iOS Grab Handle -->
         <div class="w-10 h-1.5 bg-zinc-600/70 rounded-full mx-auto mb-4 cursor-pointer" onclick="closeLogModal()"></div>
         
@@ -332,7 +332,7 @@
 
     <!-- iOS Bottom Sheet Modal (Settings) -->
     <div id="settings-modal-backdrop" class="fixed inset-0 bg-black/75 z-50 opacity-0 pointer-events-none transition-opacity duration-300 flex items-end justify-center">
-      <div id="settings-modal-content" class="w-full max-w-md bg-[#1C1C1E] rounded-t-[28px] border-t border-zinc-700 p-5 pt-3 pb-8 transform translate-y-full sheet-transition shadow-2xl space-y-4">
+      <div id="settings-modal-content" class="w-full max-w-md bg-[#1C1C1E] rounded-t-[28px] border-t border-zinc-700 p-5 pt-3 ios-safe-bottom transform translate-y-full sheet-transition shadow-2xl space-y-4">
         <!-- iOS Grab Handle -->
         <div class="w-10 h-1.5 bg-zinc-600/70 rounded-full mx-auto mb-2 cursor-pointer" onclick="closeSettingsModal()"></div>
 
@@ -408,8 +408,13 @@
   </div>
 
   <script>
-    // State Management & LocalStorage Keys
-    const STORAGE_KEY = 'ios_owing_money_items_v1';
+    // State Management & LocalStorage Keys with Multi-Key Backward Compatibility
+    const PRIMARY_KEY = 'ios_owing_money_items_v1';
+    const FALLBACK_KEYS = [
+      'ios_owing_money_items_v1',
+      'owing_money_records_v1',
+      'owing_money_items'
+    ];
     
     let currentTab = 'home';
     let currentFilter = 'all';
@@ -567,58 +572,36 @@
       }
     }
 
-    // Sample initial items for immediate demo feel
-    const sampleItems = [
-      {
-        id: 'sample-1',
-        type: 'to_me', // Alex owes user
-        person: 'Sarah Jenkins',
-        amount: 85.50,
-        description: 'Dinner at Italian bistro',
-        createdAt: new Date(Date.now() - 3600 * 1000 * 22).toISOString(),
-        settled: false,
-        settledAt: null
-      },
-      {
-        id: 'sample-2',
-        type: 'by_me', // User owes Mark
-        person: 'Mark Davidson',
-        amount: 42.00,
-        description: 'Fuel split for weekend roadtrip',
-        createdAt: new Date(Date.now() - 3600 * 1000 * 5).toISOString(),
-        settled: false,
-        settledAt: null
-      },
-      {
-        id: 'sample-3',
-        type: 'to_me',
-        person: 'David Chen',
-        amount: 120.00,
-        description: 'Concert ticket pre-order',
-        createdAt: new Date(Date.now() - 86400 * 1000 * 3).toISOString(),
-        settled: true,
-        settledAt: new Date(Date.now() - 3600 * 1000 * 2).toISOString()
-      }
-    ];
-
-    // Initialize or load from storage
+    // Load user data strictly preserving existing stored entries
     function loadData() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleItems));
-          return sampleItems;
+        // 1. Check all prior and current storage keys
+        for (const key of FALLBACK_KEYS) {
+          const raw = localStorage.getItem(key);
+          if (raw !== null) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              // Guarantee backwards compatibility: migrate to PRIMARY_KEY without overwriting
+              if (key !== PRIMARY_KEY) {
+                localStorage.setItem(PRIMARY_KEY, JSON.stringify(parsed));
+              }
+              return parsed;
+            }
+          }
         }
-        return JSON.parse(raw);
+
+        // 2. Only if entirely brand new with no previous records, start with an empty clean ledger
+        localStorage.setItem(PRIMARY_KEY, JSON.stringify([]));
+        return [];
       } catch (err) {
-        console.error("Storage error:", err);
-        return sampleItems;
+        console.error("Storage load error:", err);
+        return [];
       }
     }
 
     function saveData(items) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        localStorage.setItem(PRIMARY_KEY, JSON.stringify(items));
       } catch (err) {
         console.error("Failed saving to localStorage", err);
       }
