@@ -12,9 +12,10 @@
   <meta name="application-name" content="Owing Money">
   <meta name="theme-color" content="#000000">
 
-  <!-- Apple Touch Icon & Favicon Links (Embedded via High-Res Vector SVG Data URI) -->
+  <!-- Apple Touch Icon & Favicon Links (Set dynamically as PNG Data URIs for Safari iOS) -->
   <link id="apple-touch-icon" rel="apple-touch-icon" sizes="180x180" href="">
-  <link id="favicon-icon" rel="icon" type="image/svg+xml" href="">
+  <link id="apple-touch-icon-precomposed" rel="apple-touch-icon-precomposed" sizes="180x180" href="">
+  <link id="favicon-icon" rel="icon" type="image/png" href="">
   <link id="app-manifest" rel="manifest" href="">
 
   <!-- Tailwind CSS CDN -->
@@ -362,24 +363,6 @@
           </span>
         </div>
 
-        <!-- Home Screen Icon Preview & Safari Tip Card -->
-        <div class="ios-card rounded-2xl p-3.5 border border-zinc-800 space-y-2.5">
-          <div class="flex items-center gap-3">
-            <div class="relative w-12 h-12 rounded-[13px] overflow-hidden shadow-lg border border-white/10 flex-shrink-0 bg-black flex items-center justify-center">
-              <img id="settings-icon-preview" alt="App Icon" class="w-full h-full object-cover">
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="text-xs font-semibold text-white flex items-center gap-1.5">
-                <span>Custom Home Screen Icon</span>
-                <span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-mono">PWA</span>
-              </div>
-              <p class="text-[11px] text-zinc-400 leading-tight mt-0.5">
-                Tap Safari <span class="text-blue-400 font-medium">Share</span> (<i data-lucide="share" class="w-3 h-3 inline"></i>) &rarr; <span class="text-zinc-200 font-medium">"Add to Home Screen"</span> for fullscreen native app mode.
-              </p>
-            </div>
-          </div>
-        </div>
-
         <!-- Ledger Stats -->
         <div class="ios-card rounded-2xl p-3.5 space-y-2">
           <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Lifetime Statistics</span>
@@ -431,112 +414,157 @@
     let currentTab = 'home';
     let currentFilter = 'all';
 
-    // SVG Vector Template for iOS Apple Touch Icon & Manifest
-    function createIconSvgDataUri() {
-      const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-        <defs>
-          <!-- Deep Charcoal OLED Radial Gradient -->
-          <radialGradient id="bgGrad" cx="50%" cy="35%" r="75%">
-            <stop offset="0%" stop-color="#1F1F24"/>
-            <stop offset="60%" stop-color="#0E0E10"/>
-            <stop offset="100%" stop-color="#000000"/>
-          </radialGradient>
+    // Generate high-resolution PNG Data URI via HTML5 Canvas for iOS Safari Apple Touch Icon
+    function generatePngTouchIcon(size = 512) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return '';
 
-          <!-- Outer Specular Rim Glow -->
-          <linearGradient id="rimGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="rgba(255,255,255,0.22)"/>
-            <stop offset="45%" stop-color="rgba(255,255,255,0.04)"/>
-            <stop offset="100%" stop-color="rgba(255,255,255,0.01)"/>
-          </linearGradient>
+      const w = size;
+      const h = size;
+      const center = size / 2;
 
-          <!-- Dual Flow Ring Gradients -->
-          <linearGradient id="emeraldArc" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#30D158"/>
-            <stop offset="100%" stop-color="#34C759"/>
-          </linearGradient>
+      // 1. Solid deep charcoal-to-black gradient background (No alpha/transparency for iOS Home Screen)
+      const bgGrad = ctx.createRadialGradient(center, center * 0.7, 0, center, center, center * 1.05);
+      bgGrad.addColorStop(0, '#1E1E24');
+      bgGrad.addColorStop(0.55, '#121216');
+      bgGrad.addColorStop(1, '#050507');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, w, h);
 
-          <linearGradient id="crimsonArc" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#FF453A"/>
-            <stop offset="100%" stop-color="#FF375F"/>
-          </linearGradient>
+      // 2. Subtle interior rim bevel
+      ctx.lineWidth = size * 0.008;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.strokeRect(size * 0.04, size * 0.04, w - (size * 0.08), h - (size * 0.08));
 
-          <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="8" result="blur"/>
-            <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-          </filter>
-        </defs>
+      // 3. Ambient colorful background glows
+      // Emerald glow on top-left (Owed to Me)
+      const greenGlow = ctx.createRadialGradient(size * 0.35, size * 0.35, 10, size * 0.35, size * 0.35, size * 0.32);
+      greenGlow.addColorStop(0, 'rgba(48, 209, 88, 0.28)');
+      greenGlow.addColorStop(1, 'rgba(48, 209, 88, 0)');
+      ctx.fillStyle = greenGlow;
+      ctx.beginPath();
+      ctx.arc(size * 0.35, size * 0.35, size * 0.32, 0, Math.PI * 2);
+      ctx.fill();
 
-        <!-- Solid Background -->
-        <rect width="512" height="512" fill="url(#bgGrad)"/>
-        
-        <!-- Subtle Subsurface Plate -->
-        <rect x="24" y="24" width="464" height="464" rx="100" fill="none" stroke="url(#rimGlow)" stroke-width="2.5"/>
+      // Crimson glow on bottom-right (Money I Owe)
+      const redGlow = ctx.createRadialGradient(size * 0.65, size * 0.65, 10, size * 0.65, size * 0.65, size * 0.32);
+      redGlow.addColorStop(0, 'rgba(255, 69, 58, 0.28)');
+      redGlow.addColorStop(1, 'rgba(255, 69, 58, 0)');
+      ctx.fillStyle = redGlow;
+      ctx.beginPath();
+      ctx.arc(size * 0.65, size * 0.65, size * 0.32, 0, Math.PI * 2);
+      ctx.fill();
 
-        <!-- Ambient Dual Color Halos -->
-        <circle cx="190" cy="190" r="130" fill="#30D158" opacity="0.14" filter="blur(40px)"/>
-        <circle cx="322" cy="322" r="130" fill="#FF453A" opacity="0.14" filter="blur(40px)"/>
+      // 4. Circular exchange flow arcs
+      const ringRadius = size * 0.26;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
 
-        <!-- Receiving Arc (Top-Left Flow: Money In) -->
-        <path d="M 136 256 A 120 120 0 0 1 356 160" fill="none" stroke="url(#emeraldArc)" stroke-width="26" stroke-linecap="round" filter="url(#softGlow)"/>
-        <!-- Receiving Arrowhead -->
-        <path d="M 346 130 L 378 162 L 334 186" fill="none" stroke="url(#emeraldArc)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+      // Emerald Arc (top-half flow)
+      ctx.lineWidth = size * 0.052;
+      const greenGrad = ctx.createLinearGradient(size * 0.2, size * 0.5, size * 0.8, size * 0.2);
+      greenGrad.addColorStop(0, '#30D158');
+      greenGrad.addColorStop(1, '#34C759');
+      ctx.strokeStyle = greenGrad;
+      ctx.beginPath();
+      ctx.arc(center, center, ringRadius, Math.PI * 0.85, Math.PI * 1.88, false);
+      ctx.stroke();
 
-        <!-- Paying Arc (Bottom-Right Flow: Money Out) -->
-        <path d="M 376 256 A 120 120 0 0 1 156 352" fill="none" stroke="url(#crimsonArc)" stroke-width="26" stroke-linecap="round" filter="url(#softGlow)"/>
-        <!-- Paying Arrowhead -->
-        <path d="M 166 382 L 134 350 L 178 326" fill="none" stroke="url(#crimsonArc)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+      // Emerald arrowhead at end of arc
+      const greenArrowTipX = center + Math.cos(Math.PI * 1.88) * ringRadius;
+      const greenArrowTipY = center + Math.sin(Math.PI * 1.88) * ringRadius;
+      ctx.fillStyle = '#34C759';
+      ctx.beginPath();
+      ctx.moveTo(greenArrowTipX + (size * 0.055), greenArrowTipY - (size * 0.015));
+      ctx.lineTo(greenArrowTipX - (size * 0.01), greenArrowTipY - (size * 0.065));
+      ctx.lineTo(greenArrowTipX - (size * 0.015), greenArrowTipY + (size * 0.04));
+      ctx.closePath();
+      ctx.fill();
 
-        <!-- Central Glass Orb Behind Symbol -->
-        <circle cx="256" cy="256" r="82" fill="#151518" stroke="rgba(255,255,255,0.12)" stroke-width="3"/>
+      // Crimson Arc (bottom-half flow)
+      ctx.lineWidth = size * 0.052;
+      const redGrad = ctx.createLinearGradient(size * 0.8, size * 0.5, size * 0.2, size * 0.8);
+      redGrad.addColorStop(0, '#FF453A');
+      redGrad.addColorStop(1, '#FF375F');
+      ctx.strokeStyle = redGrad;
+      ctx.beginPath();
+      ctx.arc(center, center, ringRadius, -Math.PI * 0.15, Math.PI * 0.88, false);
+      ctx.stroke();
 
-        <!-- Central Bold AUD Dollar Glyph -->
-        <text x="256" y="292" font-family="-apple-system, SF Pro Display, Helvetica, Arial, sans-serif" font-size="108" font-weight="800" text-anchor="middle" fill="#FFFFFF" letter-spacing="-2">
-          $
-        </text>
-      </svg>
-      `.trim();
+      // Crimson arrowhead at end of arc
+      const redArrowTipX = center + Math.cos(Math.PI * 0.88) * ringRadius;
+      const redArrowTipY = center + Math.sin(Math.PI * 0.88) * ringRadius;
+      ctx.fillStyle = '#FF453A';
+      ctx.beginPath();
+      ctx.moveTo(redArrowTipX - (size * 0.055), redArrowTipY + (size * 0.015));
+      ctx.lineTo(redArrowTipX + (size * 0.01), redArrowTipY + (size * 0.065));
+      ctx.lineTo(redArrowTipX + (size * 0.015), redArrowTipY - (size * 0.04));
+      ctx.closePath();
+      ctx.fill();
 
-      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+      // 5. Central frosted disc badge
+      ctx.beginPath();
+      ctx.arc(center, center, size * 0.18, 0, Math.PI * 2);
+      ctx.fillStyle = '#17171C';
+      ctx.fill();
+      ctx.lineWidth = size * 0.01;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.stroke();
+
+      // 6. Crisp center Dollar Sign
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `800 ${Math.round(size * 0.23)}px -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif`;
+      ctx.fillText('$', center, center + (size * 0.01));
+
+      return canvas.toDataURL('image/png');
     }
 
-    // Configure Safari Touch Icon, Favicon & Standalone Manifest
+    // Configure Safari Touch Icon, Favicon & Standalone Manifest using valid PNG data
     function configureAppleTouchIcon() {
-      const iconDataUri = createIconSvgDataUri();
+      try {
+        const pngDataUri = generatePngTouchIcon(512);
+        if (!pngDataUri) return;
 
-      // Set Apple Touch Icon & Favicon
-      const appleTouchLink = document.getElementById('apple-touch-icon');
-      if (appleTouchLink) appleTouchLink.href = iconDataUri;
+        // Set Apple Touch Icon & precomposed links with PNG data URI
+        const appleTouchLink = document.getElementById('apple-touch-icon');
+        if (appleTouchLink) appleTouchLink.href = pngDataUri;
 
-      const faviconLink = document.getElementById('favicon-icon');
-      if (faviconLink) faviconLink.href = iconDataUri;
+        const appleTouchPrecomposed = document.getElementById('apple-touch-icon-precomposed');
+        if (appleTouchPrecomposed) appleTouchPrecomposed.href = pngDataUri;
 
-      // Update Preview inside settings sheet
-      const previewImg = document.getElementById('settings-icon-preview');
-      if (previewImg) previewImg.src = iconDataUri;
+        const faviconLink = document.getElementById('favicon-icon');
+        if (faviconLink) faviconLink.href = pngDataUri;
 
-      // Build & set Web App Manifest Data URI
-      const manifestObj = {
-        name: "Owing Money",
-        short_name: "Owing",
-        start_url: "./",
-        display: "standalone",
-        background_color: "#000000",
-        theme_color: "#000000",
-        description: "Personal iOS dark mode debt and credit ledger in AUD",
-        icons: [
-          {
-            src: iconDataUri,
-            sizes: "512x512",
-            type: "image/svg+xml",
-            purpose: "any maskable"
-          }
-        ]
-      };
-      const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
-      const manifestUrl = URL.createObjectURL(manifestBlob);
-      const manifestLink = document.getElementById('app-manifest');
-      if (manifestLink) manifestLink.href = manifestUrl;
+        // Build & set Web App Manifest Data URI with PNG icon
+        const manifestObj = {
+          name: "Owing Money",
+          short_name: "Owing",
+          start_url: "./",
+          display: "standalone",
+          background_color: "#000000",
+          theme_color: "#000000",
+          description: "Personal iOS dark mode debt and credit ledger in AUD",
+          icons: [
+            {
+              src: pngDataUri,
+              sizes: "512x512",
+              type: "image/png",
+              purpose: "any maskable"
+            }
+          ]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
+        const manifestUrl = URL.createObjectURL(manifestBlob);
+        const manifestLink = document.getElementById('app-manifest');
+        if (manifestLink) manifestLink.href = manifestUrl;
+      } catch (err) {
+        console.error("Failed to configure touch icon:", err);
+      }
     }
 
     // Sample initial items for immediate demo feel
