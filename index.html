@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Owing Money - iOS Tracker</title>
+
+  <!-- iOS Safari PWA Standalone Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Owing Money">
+  <meta name="application-name" content="Owing Money">
+  <meta name="theme-color" content="#000000">
+
+  <!-- Apple Touch Icon & Favicon Links (Embedded via High-Res Vector SVG Data URI) -->
+  <link id="apple-touch-icon" rel="apple-touch-icon" sizes="180x180" href="">
+  <link id="favicon-icon" rel="icon" type="image/svg+xml" href="">
+  <link id="app-manifest" rel="manifest" href="">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* SF Pro & iOS Native Typography feel */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #000000;
+      color: #F2F2F7;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    
+    /* Smooth transitions and custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2C2C2E;
+      border-radius: 4px;
+    }
+
+    /* iOS Glass Blur */
+    .ios-glass {
+      background: rgba(28, 28, 30, 0.78);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    
+    .ios-card {
+      background-color: #1C1C1E;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .ios-elevated {
+      background-color: #2C2C2E;
+    }
+
+    /* Spring-like active states for buttons */
+    .ios-btn:active {
+      transform: scale(0.96);
+      opacity: 0.9;
+    }
+    
+    /* Slide in modal transition */
+    .sheet-transition {
+      transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease;
+    }
+
+    /* Checkbox animated tick */
+    .tick-check {
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .ticking {
+      transform: scale(1.15);
+      background-color: #30D158 !important;
+      border-color: #30D158 !important;
+    }
+
+    /* Safe-area insets padding simulation */
+    .safe-top {
+      padding-top: max(env(safe-area-inset-top), 12px);
+    }
+    .safe-bottom {
+      padding-bottom: max(env(safe-area-inset-bottom), 16px);
+    }
+  </style>
+</head>
+<body class="bg-black text-[#F2F2F7] flex justify-center min-h-screen antialiased selection:bg-[#0A84FF]/30">
+
+  <!-- iPhone Shell Wrapper (Responsive: Fullscreen on mobile, stylized phone container on desktop) -->
+  <div class="w-full max-w-md min-h-screen bg-black flex flex-col relative pb-24 shadow-2xl overflow-hidden border-x border-[#1C1C1E]/60">
+    
+    <!-- Top App Navigation Header -->
+    <header class="sticky top-0 z-40 ios-glass border-b border-[#2C2C2E]/60 px-5 pt-4 pb-3">
+      <!-- App Header & Title -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
+            Owing Money
+          </h1>
+          <p class="text-xs text-zinc-400 font-medium">Personal Debt &amp; Credit Ledger</p>
+        </div>
+        <!-- Settings Button -->
+        <button onclick="openSettingsModal()" title="Settings" class="ios-btn p-2 rounded-full bg-[#1C1C1E] hover:bg-[#2C2C2E] border border-zinc-800 text-zinc-300 hover:text-white transition-colors">
+          <i data-lucide="settings" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Top Segmented Navigation Control (Home Active vs Log) -->
+      <div class="mt-4 p-1 bg-[#1C1C1E] rounded-xl flex items-center border border-zinc-800">
+        <button id="nav-home-btn" onclick="switchTab('home')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 bg-[#2C2C2E] text-white shadow-sm flex items-center justify-center gap-1.5">
+          <i data-lucide="wallet" class="w-3.5 h-3.5"></i>
+          <span>Active IOUs</span>
+          <span id="active-badge" class="ml-1 text-[10px] px-1.5 py-0.2 bg-blue-500/20 text-blue-400 rounded-full font-bold">0</span>
+        </button>
+        <button id="nav-log-btn" onclick="switchTab('log')" class="flex-1 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 text-zinc-400 hover:text-white flex items-center justify-center gap-1.5">
+          <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+          <span>Settled Log</span>
+          <span id="log-badge" class="ml-1 text-[10px] px-1.5 py-0.2 bg-emerald-500/20 text-emerald-400 rounded-full font-bold">0</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN TAB 1: HOME PAGE -->
+    <main id="tab-home" class="flex-1 px-4 pt-4 space-y-4">
+      
+      <!-- Balance Cards Grid -->
+      <section class="grid grid-cols-2 gap-3">
+        <!-- Owed to Me Card -->
+        <div class="ios-card rounded-2xl p-3.5 flex flex-col justify-between border-l-4 border-l-[#30D158]">
+          <div class="flex items-center justify-between text-xs font-medium text-zinc-400">
+            <span>Owed To Me</span>
+            <span class="p-1 rounded-full bg-[#30D158]/10 text-[#30D158]">
+              <i data-lucide="arrow-down-left" class="w-3.5 h-3.5"></i>
+            </span>
+          </div>
+          <div class="mt-2">
+            <span class="text-xs text-[#30D158] font-medium">To Receive</span>
+            <div id="total-owed-to-me" class="text-xl font-bold text-[#30D158] tracking-tight truncate">+$0.00</div>
+          </div>
+        </div>
+
+        <!-- Money I Owe Card -->
+        <div class="ios-card rounded-2xl p-3.5 flex flex-col justify-between border-l-4 border-l-[#FF453A]">
+          <div class="flex items-center justify-between text-xs font-medium text-zinc-400">
+            <span>Money I Owe</span>
+            <span class="p-1 rounded-full bg-[#FF453A]/10 text-[#FF453A]">
+              <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+            </span>
+          </div>
+          <div class="mt-2">
+            <span class="text-xs text-[#FF453A] font-medium">To Pay</span>
+            <div id="total-owed-by-me" class="text-xl font-bold text-[#FF453A] tracking-tight truncate">-$0.00</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Net Overview Bar -->
+      <div class="ios-card rounded-xl px-4 py-2.5 flex items-center justify-between text-xs">
+        <span class="text-zinc-400">Net Standing:</span>
+        <span id="net-balance" class="font-bold text-sm tracking-tight text-white">$0.00</span>
+      </div>
+
+      <!-- Action Buttons (Prominent Buttons requested by user) -->
+      <section class="grid grid-cols-2 gap-3 pt-1">
+        <!-- Button 1: Log Money Owed To Me -->
+        <button onclick="openLogModal('to_me')" class="ios-btn group bg-[#1C1C1E] hover:bg-[#2C2C2E] border border-[#30D158]/30 rounded-2xl p-3.5 text-left flex flex-col justify-between transition-all duration-150 shadow-md">
+          <div class="flex items-center justify-between w-full">
+            <span class="w-8 h-8 rounded-full bg-[#30D158] flex items-center justify-center text-black font-extrabold text-lg shadow-sm group-hover:scale-105 transition-transform">
+              +
+            </span>
+            <i data-lucide="hand-coins" class="w-4 h-4 text-[#30D158]/80"></i>
+          </div>
+          <div class="mt-2.5">
+            <div class="text-xs text-[#30D158] font-medium">Lent Money</div>
+            <div class="text-sm font-bold text-white tracking-tight leading-tight">Owed To Me</div>
+          </div>
+        </button>
+
+        <!-- Button 2: Log Money I Owe -->
+        <button onclick="openLogModal('by_me')" class="ios-btn group bg-[#1C1C1E] hover:bg-[#2C2C2E] border border-[#FF453A]/30 rounded-2xl p-3.5 text-left flex flex-col justify-between transition-all duration-150 shadow-md">
+          <div class="flex items-center justify-between w-full">
+            <span class="w-8 h-8 rounded-full bg-[#FF453A] flex items-center justify-center text-white font-extrabold text-lg shadow-sm group-hover:scale-105 transition-transform">
+              +
+            </span>
+            <i data-lucide="receipt" class="w-4 h-4 text-[#FF453A]/80"></i>
+          </div>
+          <div class="mt-2.5">
+            <div class="text-xs text-[#FF453A] font-medium">Borrowed</div>
+            <div class="text-sm font-bold text-white tracking-tight leading-tight">Money I Owe</div>
+          </div>
+        </button>
+      </section>
+
+      <!-- Active List Section Header & Filter Pills -->
+      <section class="pt-2">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-sm font-semibold tracking-wide uppercase text-zinc-400">Open Items</h2>
+          <!-- Sub filter -->
+          <div class="flex gap-1 text-[11px] bg-[#1C1C1E] p-0.5 rounded-lg border border-zinc-800">
+            <button onclick="filterActiveList('all')" id="filter-all" class="px-2 py-0.5 rounded-md font-medium text-white bg-[#2C2C2E]">All</button>
+            <button onclick="filterActiveList('to_me')" id="filter-to_me" class="px-2 py-0.5 rounded-md font-medium text-zinc-400 hover:text-white">To Me</button>
+            <button onclick="filterActiveList('by_me')" id="filter-by_me" class="px-2 py-0.5 rounded-md font-medium text-zinc-400 hover:text-white">I Owe</button>
+          </div>
+        </div>
+
+        <!-- Active Items Container -->
+        <div id="active-list" class="space-y-2.5">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="active-empty" class="hidden text-center py-12 px-4">
+          <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-[#1C1C1E] flex items-center justify-center text-zinc-500 border border-zinc-800">
+            <i data-lucide="check-check" class="w-7 h-7 text-emerald-400"></i>
+          </div>
+          <p class="text-base font-semibold text-white">All Squared Up!</p>
+          <p class="text-xs text-zinc-400 mt-1">No pending money owed right now. Use the buttons above to log any new IOU.</p>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- MAIN TAB 2: SETTLED LOG PAGE -->
+    <main id="tab-log" class="flex-1 px-4 pt-4 space-y-4 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-white tracking-tight">Settlement Log</h2>
+          <p class="text-xs text-zinc-400">Record of debts ticked off and completed</p>
+        </div>
+        <button onclick="promptClearAllLogs()" class="text-xs text-red-400 hover:text-red-300 font-medium py-1 px-2.5 rounded-lg bg-red-500/10 border border-red-500/20 active:scale-95 transition-all">
+          Clear History
+        </button>
+      </div>
+
+      <!-- Log Items Container -->
+      <div id="log-list" class="space-y-2.5">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Empty State for Log -->
+      <div id="log-empty" class="hidden text-center py-16 px-4">
+        <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-[#1C1C1E] flex items-center justify-center text-zinc-500 border border-zinc-800">
+          <i data-lucide="archive" class="w-7 h-7 text-zinc-400"></i>
+        </div>
+        <p class="text-base font-semibold text-white">Log is Empty</p>
+        <p class="text-xs text-zinc-400 mt-1 max-w-xs mx-auto">When you tick off open debts on the Home screen, they will be archived here with exact payment timestamps.</p>
+      </div>
+    </main>
+
+    <!-- iOS Bottom Sheet Modal (New Entry) -->
+    <div id="entry-modal-backdrop" class="fixed inset-0 bg-black/75 z-50 opacity-0 pointer-events-none transition-opacity duration-300 flex items-end justify-center">
+      <!-- Sheet Content -->
+      <div id="entry-modal-content" class="w-full max-w-md bg-[#1C1C1E] rounded-t-[28px] border-t border-zinc-700 p-5 pt-3 pb-8 transform translate-y-full sheet-transition shadow-2xl">
+        <!-- iOS Grab Handle -->
+        <div class="w-10 h-1.5 bg-zinc-600/70 rounded-full mx-auto mb-4 cursor-pointer" onclick="closeLogModal()"></div>
+        
+        <!-- Sheet Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+          <div>
+            <h3 id="modal-title" class="text-lg font-bold text-white">Log Owed Money</h3>
+            <p id="modal-subtitle" class="text-xs text-zinc-400">Enter details to record this debt</p>
+          </div>
+          <button onclick="closeLogModal()" class="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center text-sm font-semibold">
+            ✕
+          </button>
+        </div>
+
+        <!-- Form Form -->
+        <form id="debt-form" onsubmit="handleFormSubmit(event)" class="mt-4 space-y-4">
+          <input type="hidden" id="entry-type" value="to_me">
+
+          <!-- Type Switcher Pill inside modal -->
+          <div class="grid grid-cols-2 gap-2 p-1 bg-[#2C2C2E] rounded-xl text-xs font-semibold">
+            <button type="button" id="modal-tab-to-me" onclick="setModalType('to_me')" class="py-2 rounded-lg transition-all text-white bg-[#30D158]/30 border border-[#30D158]/50 flex items-center justify-center gap-1">
+              <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Owed To Me
+            </button>
+            <button type="button" id="modal-tab-by-me" onclick="setModalType('by_me')" class="py-2 rounded-lg transition-all text-zinc-400 hover:text-white flex items-center justify-center gap-1">
+              <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i> Money I Owe
+            </button>
+          </div>
+
+          <!-- Person Name -->
+          <div>
+            <label class="block text-xs font-medium text-zinc-300 mb-1.5">Person's Name</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-zinc-500">
+                <i data-lucide="user" class="w-4 h-4"></i>
+              </span>
+              <input type="text" id="person-name" required placeholder="e.g. Alex Smith" class="w-full bg-[#2C2C2E] border border-zinc-700 focus:border-blue-500 rounded-xl pl-10 pr-3 py-2.5 text-sm text-white placeholder-zinc-500 outline-none transition-colors">
+            </div>
+          </div>
+
+          <!-- Amount -->
+          <div>
+            <label class="block text-xs font-medium text-zinc-300 mb-1.5">Amount ($)</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-lg font-bold text-zinc-400">$</span>
+              <input type="number" step="0.01" min="0.01" id="amount" required placeholder="0.00" class="w-full bg-[#2C2C2E] border border-zinc-700 focus:border-blue-500 rounded-xl pl-9 pr-3 py-2.5 text-base font-semibold text-white placeholder-zinc-500 outline-none transition-colors">
+            </div>
+          </div>
+
+          <!-- Short Description -->
+          <div>
+            <label class="block text-xs font-medium text-zinc-300 mb-1.5">Short Description</label>
+            <div class="relative">
+              <span class="absolute top-3 left-0 pl-3.5 text-zinc-500">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+              </span>
+              <input type="text" id="description" required placeholder="e.g. Dinner bill, Concert ticket, Uber split" class="w-full bg-[#2C2C2E] border border-zinc-700 focus:border-blue-500 rounded-xl pl-10 pr-3 py-2.5 text-sm text-white placeholder-zinc-500 outline-none transition-colors">
+            </div>
+          </div>
+
+          <!-- Time Preview Note -->
+          <div class="text-[11px] text-zinc-400 flex items-center gap-1.5 bg-[#2C2C2E]/60 p-2.5 rounded-lg">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-zinc-400"></i>
+            <span>Timestamp will be recorded automatically at confirmation.</span>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="pt-2">
+            <button type="submit" id="modal-submit-btn" class="ios-btn w-full py-3.5 rounded-xl font-bold text-sm text-black bg-[#30D158] hover:bg-emerald-400 transition-colors shadow-lg flex items-center justify-center gap-2">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              <span>Save Entry</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- iOS Bottom Sheet Modal (Settings) -->
+    <div id="settings-modal-backdrop" class="fixed inset-0 bg-black/75 z-50 opacity-0 pointer-events-none transition-opacity duration-300 flex items-end justify-center">
+      <div id="settings-modal-content" class="w-full max-w-md bg-[#1C1C1E] rounded-t-[28px] border-t border-zinc-700 p-5 pt-3 pb-8 transform translate-y-full sheet-transition shadow-2xl space-y-4">
+        <!-- iOS Grab Handle -->
+        <div class="w-10 h-1.5 bg-zinc-600/70 rounded-full mx-auto mb-2 cursor-pointer" onclick="closeSettingsModal()"></div>
+
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+          <div>
+            <h3 class="text-lg font-bold text-white">App Settings</h3>
+            <p class="text-xs text-zinc-400">Ledger configuration &amp; statistics</p>
+          </div>
+          <button onclick="closeSettingsModal()" class="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center text-sm font-semibold">
+            ✕
+          </button>
+        </div>
+
+        <!-- Currency Info -->
+        <div class="ios-card rounded-2xl p-3.5 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center">
+              <i data-lucide="coins" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-white">Default Currency</div>
+              <div class="text-[11px] text-zinc-400">All amounts calculated in AUD</div>
+            </div>
+          </div>
+          <span class="text-xs font-bold text-blue-400 bg-blue-500/15 border border-blue-500/30 px-2.5 py-1 rounded-full">
+            AUD (A$)
+          </span>
+        </div>
+
+        <!-- Home Screen Icon Preview & Safari Tip Card -->
+        <div class="ios-card rounded-2xl p-3.5 border border-zinc-800 space-y-2.5">
+          <div class="flex items-center gap-3">
+            <div class="relative w-12 h-12 rounded-[13px] overflow-hidden shadow-lg border border-white/10 flex-shrink-0 bg-black flex items-center justify-center">
+              <img id="settings-icon-preview" alt="App Icon" class="w-full h-full object-cover">
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-semibold text-white flex items-center gap-1.5">
+                <span>Custom Home Screen Icon</span>
+                <span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-mono">PWA</span>
+              </div>
+              <p class="text-[11px] text-zinc-400 leading-tight mt-0.5">
+                Tap Safari <span class="text-blue-400 font-medium">Share</span> (<i data-lucide="share" class="w-3 h-3 inline"></i>) &rarr; <span class="text-zinc-200 font-medium">"Add to Home Screen"</span> for fullscreen native app mode.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ledger Stats -->
+        <div class="ios-card rounded-2xl p-3.5 space-y-2">
+          <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Lifetime Statistics</span>
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <div class="bg-[#2C2C2E] p-2.5 rounded-xl">
+              <span class="text-[10px] text-zinc-400">Total Recorded</span>
+              <div id="stat-total-count" class="text-base font-bold text-white">0</div>
+            </div>
+            <div class="bg-[#2C2C2E] p-2.5 rounded-xl">
+              <span class="text-[10px] text-zinc-400">Settled Volume</span>
+              <div id="stat-settled-volume" class="text-base font-bold text-emerald-400">$0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="space-y-2 pt-1">
+          <button onclick="exportDataBackup()" class="ios-btn w-full py-2.5 px-3 rounded-xl bg-[#2C2C2E] hover:bg-[#3A3A3C] border border-zinc-700 text-xs font-semibold text-white flex items-center justify-between transition-colors">
+            <span class="flex items-center gap-2">
+              <i data-lucide="download" class="w-4 h-4 text-zinc-400"></i>
+              <span>Export Ledger Backup (JSON)</span>
+            </span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-500"></i>
+          </button>
+
+          <button onclick="resetLedgerData()" class="ios-btn w-full py-2.5 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs font-semibold text-red-400 flex items-center justify-between transition-colors">
+            <span class="flex items-center gap-2">
+              <i data-lucide="trash-2" class="w-4 h-4 text-red-400"></i>
+              <span>Reset &amp; Clear All Records</span>
+            </span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-red-400/50"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#1C1C1E] border border-zinc-700/80 text-white px-4 py-2.5 rounded-full text-xs font-medium shadow-2xl flex items-center gap-2 transform translate-y-16 opacity-0 transition-all duration-300 pointer-events-none">
+      <i id="toast-icon" data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+      <span id="toast-msg">Action completed</span>
+    </div>
+
+  </div>
+
+  <script>
+    // State Management & LocalStorage Keys
+    const STORAGE_KEY = 'ios_owing_money_items_v1';
+    
+    let currentTab = 'home';
+    let currentFilter = 'all';
+
+    // SVG Vector Template for iOS Apple Touch Icon & Manifest
+    function createIconSvgDataUri() {
+      const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+        <defs>
+          <!-- Deep Charcoal OLED Radial Gradient -->
+          <radialGradient id="bgGrad" cx="50%" cy="35%" r="75%">
+            <stop offset="0%" stop-color="#1F1F24"/>
+            <stop offset="60%" stop-color="#0E0E10"/>
+            <stop offset="100%" stop-color="#000000"/>
+          </radialGradient>
+
+          <!-- Outer Specular Rim Glow -->
+          <linearGradient id="rimGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="rgba(255,255,255,0.22)"/>
+            <stop offset="45%" stop-color="rgba(255,255,255,0.04)"/>
+            <stop offset="100%" stop-color="rgba(255,255,255,0.01)"/>
+          </linearGradient>
+
+          <!-- Dual Flow Ring Gradients -->
+          <linearGradient id="emeraldArc" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#30D158"/>
+            <stop offset="100%" stop-color="#34C759"/>
+          </linearGradient>
+
+          <linearGradient id="crimsonArc" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FF453A"/>
+            <stop offset="100%" stop-color="#FF375F"/>
+          </linearGradient>
+
+          <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="8" result="blur"/>
+            <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+          </filter>
+        </defs>
+
+        <!-- Solid Background -->
+        <rect width="512" height="512" fill="url(#bgGrad)"/>
+        
+        <!-- Subtle Subsurface Plate -->
+        <rect x="24" y="24" width="464" height="464" rx="100" fill="none" stroke="url(#rimGlow)" stroke-width="2.5"/>
+
+        <!-- Ambient Dual Color Halos -->
+        <circle cx="190" cy="190" r="130" fill="#30D158" opacity="0.14" filter="blur(40px)"/>
+        <circle cx="322" cy="322" r="130" fill="#FF453A" opacity="0.14" filter="blur(40px)"/>
+
+        <!-- Receiving Arc (Top-Left Flow: Money In) -->
+        <path d="M 136 256 A 120 120 0 0 1 356 160" fill="none" stroke="url(#emeraldArc)" stroke-width="26" stroke-linecap="round" filter="url(#softGlow)"/>
+        <!-- Receiving Arrowhead -->
+        <path d="M 346 130 L 378 162 L 334 186" fill="none" stroke="url(#emeraldArc)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Paying Arc (Bottom-Right Flow: Money Out) -->
+        <path d="M 376 256 A 120 120 0 0 1 156 352" fill="none" stroke="url(#crimsonArc)" stroke-width="26" stroke-linecap="round" filter="url(#softGlow)"/>
+        <!-- Paying Arrowhead -->
+        <path d="M 166 382 L 134 350 L 178 326" fill="none" stroke="url(#crimsonArc)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Central Glass Orb Behind Symbol -->
+        <circle cx="256" cy="256" r="82" fill="#151518" stroke="rgba(255,255,255,0.12)" stroke-width="3"/>
+
+        <!-- Central Bold AUD Dollar Glyph -->
+        <text x="256" y="292" font-family="-apple-system, SF Pro Display, Helvetica, Arial, sans-serif" font-size="108" font-weight="800" text-anchor="middle" fill="#FFFFFF" letter-spacing="-2">
+          $
+        </text>
+      </svg>
+      `.trim();
+
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    }
+
+    // Configure Safari Touch Icon, Favicon & Standalone Manifest
+    function configureAppleTouchIcon() {
+      const iconDataUri = createIconSvgDataUri();
+
+      // Set Apple Touch Icon & Favicon
+      const appleTouchLink = document.getElementById('apple-touch-icon');
+      if (appleTouchLink) appleTouchLink.href = iconDataUri;
+
+      const faviconLink = document.getElementById('favicon-icon');
+      if (faviconLink) faviconLink.href = iconDataUri;
+
+      // Update Preview inside settings sheet
+      const previewImg = document.getElementById('settings-icon-preview');
+      if (previewImg) previewImg.src = iconDataUri;
+
+      // Build & set Web App Manifest Data URI
+      const manifestObj = {
+        name: "Owing Money",
+        short_name: "Owing",
+        start_url: "./",
+        display: "standalone",
+        background_color: "#000000",
+        theme_color: "#000000",
+        description: "Personal iOS dark mode debt and credit ledger in AUD",
+        icons: [
+          {
+            src: iconDataUri,
+            sizes: "512x512",
+            type: "image/svg+xml",
+            purpose: "any maskable"
+          }
+        ]
+      };
+      const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
+      const manifestUrl = URL.createObjectURL(manifestBlob);
+      const manifestLink = document.getElementById('app-manifest');
+      if (manifestLink) manifestLink.href = manifestUrl;
+    }
+
+    // Sample initial items for immediate demo feel
+    const sampleItems = [
+      {
+        id: 'sample-1',
+        type: 'to_me', // Alex owes user
+        person: 'Sarah Jenkins',
+        amount: 85.50,
+        description: 'Dinner at Italian bistro',
+        createdAt: new Date(Date.now() - 3600 * 1000 * 22).toISOString(),
+        settled: false,
+        settledAt: null
+      },
+      {
+        id: 'sample-2',
+        type: 'by_me', // User owes Mark
+        person: 'Mark Davidson',
+        amount: 42.00,
+        description: 'Fuel split for weekend roadtrip',
+        createdAt: new Date(Date.now() - 3600 * 1000 * 5).toISOString(),
+        settled: false,
+        settledAt: null
+      },
+      {
+        id: 'sample-3',
+        type: 'to_me',
+        person: 'David Chen',
+        amount: 120.00,
+        description: 'Concert ticket pre-order',
+        createdAt: new Date(Date.now() - 86400 * 1000 * 3).toISOString(),
+        settled: true,
+        settledAt: new Date(Date.now() - 3600 * 1000 * 2).toISOString()
+      }
+    ];
+
+    // Initialize or load from storage
+    function loadData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleItems));
+          return sampleItems;
+        }
+        return JSON.parse(raw);
+      } catch (err) {
+        console.error("Storage error:", err);
+        return sampleItems;
+      }
+    }
+
+    function saveData(items) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      } catch (err) {
+        console.error("Failed saving to localStorage", err);
+      }
+    }
+
+    let items = loadData();
+
+    // Helper: Format Currency strictly in AUD
+    function formatMoney(amount) {
+      return new Intl.NumberFormat('en-AU', {
+        style: 'currency',
+        currency: 'AUD',
+        minimumFractionDigits: 2
+      }).format(amount);
+    }
+
+    // Helper: Format Date & Time in iOS style
+    function formatDateTime(isoString) {
+      if (!isoString) return '';
+      const date = new Date(isoString);
+      const today = new Date();
+      const isToday = date.toDateString() === today.toDateString();
+      
+      const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      if (isToday) {
+        return `Today at ${timeStr}`;
+      }
+      
+      return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${timeStr}`;
+    }
+
+    // Tab Switching
+    function switchTab(tab) {
+      currentTab = tab;
+      const homeTab = document.getElementById('tab-home');
+      const logTab = document.getElementById('tab-log');
+      const navHome = document.getElementById('nav-home-btn');
+      const navLog = document.getElementById('nav-log-btn');
+
+      if (tab === 'home') {
+        homeTab.classList.remove('hidden');
+        logTab.classList.add('hidden');
+        navHome.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 bg-[#2C2C2E] text-white shadow-sm flex items-center justify-center gap-1.5';
+        navLog.className = 'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 text-zinc-400 hover:text-white flex items-center justify-center gap-1.5';
+      } else {
+        homeTab.classList.add('hidden');
+        logTab.classList.remove('hidden');
+        navLog.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 bg-[#2C2C2E] text-white shadow-sm flex items-center justify-center gap-1.5';
+        navHome.className = 'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 text-zinc-400 hover:text-white flex items-center justify-center gap-1.5';
+      }
+      render();
+    }
+
+    // Filter Active items
+    function filterActiveList(filter) {
+      currentFilter = filter;
+      ['all', 'to_me', 'by_me'].forEach(f => {
+        const el = document.getElementById(`filter-${f}`);
+        if (el) {
+          if (f === filter) {
+            el.className = 'px-2 py-0.5 rounded-md font-medium text-white bg-[#2C2C2E]';
+          } else {
+            el.className = 'px-2 py-0.5 rounded-md font-medium text-zinc-400 hover:text-white';
+          }
+        }
+      });
+      render();
+    }
+
+    // Render Dashboard & Lists
+    function render() {
+      // 1. Calculate Totals
+      const activeItems = items.filter(i => !i.settled);
+      const settledItems = items.filter(i => i.settled);
+
+      const owedToMe = activeItems
+        .filter(i => i.type === 'to_me')
+        .reduce((sum, item) => sum + item.amount, 0);
+
+      const owedByMe = activeItems
+        .filter(i => i.type === 'by_me')
+        .reduce((sum, item) => sum + item.amount, 0);
+
+      const net = owedToMe - owedByMe;
+
+      // Update DOM Header counters
+      document.getElementById('total-owed-to-me').textContent = `+${formatMoney(owedToMe)}`;
+      document.getElementById('total-owed-by-me').textContent = `-${formatMoney(owedByMe)}`;
+      
+      const netEl = document.getElementById('net-balance');
+      if (net > 0) {
+        netEl.textContent = `+${formatMoney(net)} (Net positive)`;
+        netEl.className = 'font-bold text-sm tracking-tight text-[#30D158]';
+      } else if (net < 0) {
+        netEl.textContent = `-${formatMoney(Math.abs(net))} (You owe overall)`;
+        netEl.className = 'font-bold text-sm tracking-tight text-[#FF453A]';
+      } else {
+        netEl.textContent = `$0.00 (Even)`;
+        netEl.className = 'font-bold text-sm tracking-tight text-zinc-400';
+      }
+
+      document.getElementById('active-badge').textContent = activeItems.length;
+      document.getElementById('log-badge').textContent = settledItems.length;
+
+      // Update Settings statistics
+      const totalRecordedCount = items.length;
+      const settledVolume = settledItems.reduce((acc, curr) => acc + curr.amount, 0);
+      const statCountEl = document.getElementById('stat-total-count');
+      const statVolEl = document.getElementById('stat-settled-volume');
+      if (statCountEl) statCountEl.textContent = totalRecordedCount;
+      if (statVolEl) statVolEl.textContent = formatMoney(settledVolume);
+
+      // 2. Render Active List
+      const activeListContainer = document.getElementById('active-list');
+      const activeEmpty = document.getElementById('active-empty');
+
+      let filteredActive = activeItems;
+      if (currentFilter !== 'all') {
+        filteredActive = activeItems.filter(i => i.type === currentFilter);
+      }
+
+      if (filteredActive.length === 0) {
+        activeListContainer.innerHTML = '';
+        activeEmpty.classList.remove('hidden');
+      } else {
+        activeEmpty.classList.add('hidden');
+        activeListContainer.innerHTML = filteredActive.map(item => {
+          const isToMe = item.type === 'to_me';
+          const accentColor = isToMe ? 'text-[#30D158]' : 'text-[#FF453A]';
+          const badgeBg = isToMe ? 'bg-[#30D158]/15 text-[#30D158] border-[#30D158]/30' : 'bg-[#FF453A]/15 text-[#FF453A] border-[#FF453A]/30';
+          const badgeText = isToMe ? 'Owes You' : 'You Owe';
+
+          return `
+            <div id="card-${item.id}" class="ios-card rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all duration-300 hover:border-zinc-700">
+              <!-- Left side: Checkbox to tick off / mark as paid -->
+              <button onclick="tickOffDebt('${item.id}')" title="Mark as Paid" class="w-8 h-8 rounded-full border-2 border-zinc-500 hover:border-[#30D158] flex items-center justify-center flex-shrink-0 transition-transform active:scale-90 group tick-check">
+                <i data-lucide="check" class="w-4 h-4 text-transparent group-hover:text-emerald-400"></i>
+              </button>
+
+              <!-- Middle: Details -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-sm text-white truncate">${escapeHtml(item.person)}</span>
+                  <span class="text-[10px] px-1.5 py-0.2 rounded font-semibold border ${badgeBg}">${badgeText}</span>
+                </div>
+                <p class="text-xs text-zinc-300 truncate mt-0.5">${escapeHtml(item.description)}</p>
+                <div class="flex items-center gap-1 text-[11px] text-zinc-500 mt-1">
+                  <i data-lucide="clock" class="w-3 h-3"></i>
+                  <span>${formatDateTime(item.createdAt)}</span>
+                </div>
+              </div>
+
+              <!-- Right: Amount -->
+              <div class="text-right flex-shrink-0">
+                <div class="text-base font-extrabold tracking-tight ${accentColor}">
+                  ${isToMe ? '+' : '-'}${formatMoney(item.amount)}
+                </div>
+                <button onclick="deleteDebt('${item.id}', false)" class="text-[11px] text-zinc-500 hover:text-red-400 mt-0.5 transition-colors">
+                  Delete
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 3. Render Settled Log List
+      const logListContainer = document.getElementById('log-list');
+      const logEmpty = document.getElementById('log-empty');
+
+      if (settledItems.length === 0) {
+        logListContainer.innerHTML = '';
+        logEmpty.classList.remove('hidden');
+      } else {
+        logEmpty.classList.add('hidden');
+        // Sort settled descending by settlement time
+        const sortedSettled = [...settledItems].sort((a, b) => new Date(b.settledAt) - new Date(a.settledAt));
+
+        logListContainer.innerHTML = sortedSettled.map(item => {
+          const isToMe = item.type === 'to_me';
+          return `
+            <div class="ios-card rounded-2xl p-3.5 flex items-center justify-between gap-3 border-l-4 border-l-zinc-600 opacity-90 hover:opacity-100 transition-opacity">
+              <div class="w-7 h-7 rounded-full bg-emerald-500/20 text-[#30D158] flex items-center justify-center flex-shrink-0">
+                <i data-lucide="check" class="w-4 h-4"></i>
+              </div>
+
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-sm text-zinc-200 line-through decoration-zinc-500">${escapeHtml(item.person)}</span>
+                  <span class="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Settled</span>
+                </div>
+                <p class="text-xs text-zinc-400 truncate mt-0.5">${escapeHtml(item.description)}</p>
+                <div class="text-[10px] text-zinc-500 mt-1 flex flex-wrap gap-x-3">
+                  <span>Logged: ${formatDateTime(item.createdAt)}</span>
+                  <span class="text-emerald-400/90 font-medium">Paid on: ${formatDateTime(item.settledAt)}</span>
+                </div>
+              </div>
+
+              <div class="text-right flex-shrink-0">
+                <div class="text-sm font-bold text-zinc-300">
+                  ${formatMoney(item.amount)}
+                </div>
+                <div class="flex items-center justify-end gap-2 mt-1">
+                  <button onclick="undoSettledDebt('${item.id}')" title="Re-open into active debts" class="text-[11px] text-blue-400 hover:text-blue-300 font-medium">
+                    Re-open
+                  </button>
+                  <span class="text-zinc-600 text-[10px]">•</span>
+                  <button onclick="deleteDebt('${item.id}', true)" title="Permanently delete" class="text-[11px] text-zinc-500 hover:text-red-400">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Re-trigger Lucide icons creation
+      lucide.createIcons();
+    }
+
+    // Tick off Debt Action with Micro-animation
+    function tickOffDebt(id) {
+      const card = document.getElementById(`card-${id}`);
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+
+      if (card) {
+        // Find tick button inside
+        const btn = card.querySelector('.tick-check');
+        if (btn) {
+          btn.classList.add('ticking');
+          btn.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-black"></i>`;
+          lucide.createIcons();
+        }
+        card.style.transform = 'scale(0.97)';
+        card.style.opacity = '0.5';
+      }
+
+      setTimeout(() => {
+        item.settled = true;
+        item.settledAt = new Date().toISOString();
+        saveData(items);
+        render();
+        showToast(`Settled with ${item.person}! Stored in Log.`);
+      }, 350);
+    }
+
+    // Reopen settled debt
+    function undoSettledDebt(id) {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+      item.settled = false;
+      item.settledAt = null;
+      saveData(items);
+      render();
+      showToast(`Re-opened "${item.description}" to Active IOUs`);
+    }
+
+    // Delete single item
+    function deleteDebt(id, isHistory) {
+      items = items.filter(i => i.id !== id);
+      saveData(items);
+      render();
+      showToast(isHistory ? 'Record removed from log' : 'IOU deleted');
+    }
+
+    // Clear all history
+    function promptClearAllLogs() {
+      const hasSettled = items.some(i => i.settled);
+      if (!hasSettled) {
+        showToast('Settlement log is already empty');
+        return;
+      }
+      items = items.filter(i => !i.settled);
+      saveData(items);
+      render();
+      showToast('Settlement log cleared');
+    }
+
+    // Settings Modal Handlers
+    function openSettingsModal() {
+      render();
+      const backdrop = document.getElementById('settings-modal-backdrop');
+      const sheet = document.getElementById('settings-modal-content');
+      backdrop.classList.remove('opacity-0', 'pointer-events-none');
+      sheet.classList.remove('translate-y-full');
+    }
+
+    function closeSettingsModal() {
+      const backdrop = document.getElementById('settings-modal-backdrop');
+      const sheet = document.getElementById('settings-modal-content');
+      sheet.classList.add('translate-y-full');
+      backdrop.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    // Export Data Backup (JSON copy / download)
+    function exportDataBackup() {
+      const exportJson = JSON.stringify(items, null, 2);
+      const blob = new Blob([exportJson], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `owing-money-aud-backup-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Backup file downloaded');
+    }
+
+    // Reset ledger data with inline confirmation
+    function resetLedgerData() {
+      items = [];
+      saveData(items);
+      render();
+      closeSettingsModal();
+      showToast('All debt records have been reset');
+    }
+
+    // Modal Sheet Handlers
+    function openLogModal(type) {
+      setModalType(type);
+      document.getElementById('person-name').value = '';
+      document.getElementById('amount').value = '';
+      document.getElementById('description').value = '';
+
+      const backdrop = document.getElementById('entry-modal-backdrop');
+      const sheet = document.getElementById('entry-modal-content');
+
+      backdrop.classList.remove('opacity-0', 'pointer-events-none');
+      sheet.classList.remove('translate-y-full');
+
+      // Autofocus first input after animation
+      setTimeout(() => {
+        document.getElementById('person-name').focus();
+      }, 250);
+    }
+
+    function closeLogModal() {
+      const backdrop = document.getElementById('entry-modal-backdrop');
+      const sheet = document.getElementById('entry-modal-content');
+
+      sheet.classList.add('translate-y-full');
+      backdrop.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    function setModalType(type) {
+      document.getElementById('entry-type').value = type;
+      const title = document.getElementById('modal-title');
+      const sub = document.getElementById('modal-subtitle');
+      const btnToMe = document.getElementById('modal-tab-to-me');
+      const btnByMe = document.getElementById('modal-tab-by-me');
+      const submitBtn = document.getElementById('modal-submit-btn');
+
+      if (type === 'to_me') {
+        title.textContent = 'Log Money Owed To Me';
+        sub.textContent = 'Someone borrowed from you';
+        btnToMe.className = 'py-2 rounded-lg transition-all text-white bg-[#30D158]/30 border border-[#30D158]/50 flex items-center justify-center gap-1 font-semibold';
+        btnByMe.className = 'py-2 rounded-lg transition-all text-zinc-400 hover:text-white flex items-center justify-center gap-1';
+        submitBtn.className = 'ios-btn w-full py-3.5 rounded-xl font-bold text-sm text-black bg-[#30D158] hover:bg-emerald-400 transition-colors shadow-lg flex items-center justify-center gap-2';
+      } else {
+        title.textContent = 'Log Money I Owe';
+        sub.textContent = 'You borrowed from someone';
+        btnByMe.className = 'py-2 rounded-lg transition-all text-white bg-[#FF453A]/30 border border-[#FF453A]/50 flex items-center justify-center gap-1 font-semibold';
+        btnToMe.className = 'py-2 rounded-lg transition-all text-zinc-400 hover:text-white flex items-center justify-center gap-1';
+        submitBtn.className = 'ios-btn w-full py-3.5 rounded-xl font-bold text-sm text-white bg-[#FF453A] hover:bg-rose-500 transition-colors shadow-lg flex items-center justify-center gap-2';
+      }
+    }
+
+    // Form Submission
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const person = document.getElementById('person-name').value.trim();
+      const amountVal = parseFloat(document.getElementById('amount').value);
+      const desc = document.getElementById('description').value.trim();
+      const type = document.getElementById('entry-type').value;
+
+      if (!person) {
+        showToast('Please enter a person\'s name');
+        return;
+      }
+      if (isNaN(amountVal) || amountVal <= 0) {
+        showToast('Please enter a valid amount');
+        return;
+      }
+      if (!desc) {
+        showToast('Please provide a short description');
+        return;
+      }
+
+      const newItem = {
+        id: 'iou-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+        type: type,
+        person: person,
+        amount: amountVal,
+        description: desc,
+        createdAt: new Date().toISOString(),
+        settled: false,
+        settledAt: null
+      };
+
+      items.unshift(newItem);
+      saveData(items);
+
+      closeLogModal();
+      
+      // If we are on log tab, switch to home so user sees their new entry
+      if (currentTab !== 'home') {
+        switchTab('home');
+      } else {
+        render();
+      }
+
+      showToast(`Logged $${amountVal.toFixed(2)} with ${person}`);
+    }
+
+    // Toast notification
+    let toastTimeout;
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const msgEl = document.getElementById('toast-msg');
+      msgEl.textContent = message;
+
+      clearTimeout(toastTimeout);
+      toast.classList.remove('opacity-0', 'translate-y-16');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-16');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2600);
+    }
+
+    // Basic HTML escaping
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Modal background tap to close
+    document.getElementById('entry-modal-backdrop').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeLogModal();
+      }
+    });
+
+    document.getElementById('settings-modal-backdrop').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeSettingsModal();
+      }
+    });
+
+    // Initial render on load
+    window.addEventListener('DOMContentLoaded', () => {
+      configureAppleTouchIcon();
+      render();
+    });
+  </script>
+</body>
+</html>
