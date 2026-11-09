@@ -113,7 +113,7 @@
         <button id="nav-home-btn" onclick="switchTab('home')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 bg-[#2C2C2E] text-white shadow-sm flex items-center justify-center gap-1.5">
           <i data-lucide="wallet" class="w-3.5 h-3.5"></i>
           <span>Active IOUs</span>
-          <span id="active-badge" class="ml-1 text-[10px] px-1.5 py-0.2 bg-blue-500/20 text-blue-400 rounded-full font-bold">0</span>
+          <span id="active-badge" class="ml-1 text-[10px] px-1.5 py-0.2 bg-red-500/20 text-red-400 rounded-full font-bold">0</span>
         </button>
         <button id="nav-log-btn" onclick="switchTab('log')" class="flex-1 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 text-zinc-400 hover:text-white flex items-center justify-center gap-1.5">
           <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
@@ -197,7 +197,10 @@
       <!-- Active List Section Header & Filter Pills -->
       <section class="pt-2">
         <div class="flex items-center justify-between mb-2">
-          <h2 class="text-sm font-semibold tracking-wide uppercase text-zinc-400">Open Items</h2>
+          <div class="flex items-center gap-2">
+            <h2 class="text-sm font-semibold tracking-wide uppercase text-zinc-400">Open Items</h2>
+            <span id="open-items-badge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FF453A] text-white shadow-sm">0</span>
+          </div>
           <!-- Sub filter -->
           <div class="flex gap-1 text-[11px] bg-[#1C1C1E] p-0.5 rounded-lg border border-zinc-800">
             <button onclick="filterActiveList('all')" id="filter-all" class="px-2 py-0.5 rounded-md font-medium text-white bg-[#2C2C2E]">All</button>
@@ -419,8 +422,8 @@
     let currentTab = 'home';
     let currentFilter = 'all';
 
-    // Generate high-resolution PNG Data URI via HTML5 Canvas for iOS Safari Apple Touch Icon
-    function generatePngTouchIcon(size = 512) {
+    // Generate high-resolution PNG Data URI via HTML5 Canvas with optional red notification badge
+    function generatePngTouchIcon(size = 512, badgeCount = 0) {
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
@@ -526,13 +529,70 @@
       ctx.font = `800 ${Math.round(size * 0.23)}px -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif`;
       ctx.fillText('$', center, center + (size * 0.01));
 
+      // 7. Red Notification Badge for Open Items (iOS Red badge style)
+      if (badgeCount > 0) {
+        const badgeText = badgeCount > 99 ? '99+' : String(badgeCount);
+        const badgeRadius = size * 0.12;
+        const badgeX = size * 0.81;
+        const badgeY = size * 0.19;
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+        ctx.shadowBlur = size * 0.035;
+        ctx.shadowOffsetY = size * 0.015;
+
+        if (badgeText.length > 1) {
+          // Pill badge for 2+ digits
+          const pillWidth = size * 0.28;
+          const pillHeight = size * 0.22;
+          const pillX = badgeX - (pillWidth / 2);
+          const pillY = badgeY - (pillHeight / 2);
+          const r = pillHeight / 2;
+
+          ctx.fillStyle = '#FF3B30';
+          ctx.beginPath();
+          ctx.moveTo(pillX + r, pillY);
+          ctx.lineTo(pillX + pillWidth - r, pillY);
+          ctx.arcTo(pillX + pillWidth, pillY, pillX + pillWidth, pillY + pillHeight, r);
+          ctx.arcTo(pillX + pillWidth, pillY + pillHeight, pillX, pillY + pillHeight, r);
+          ctx.arcTo(pillX, pillY + pillHeight, pillX, pillY, r);
+          ctx.arcTo(pillX, pillY, pillX + pillWidth, pillY, r);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.lineWidth = size * 0.014;
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.stroke();
+        } else {
+          // Circular badge for single digits
+          ctx.fillStyle = '#FF3B30';
+          ctx.beginPath();
+          ctx.arc(badgeX, badgeY, badgeRadius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.lineWidth = size * 0.014;
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Text inside badge
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const fontSize = badgeText.length > 2 ? Math.round(size * 0.09) : Math.round(size * 0.12);
+        ctx.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif`;
+        ctx.fillText(badgeText, badgeX, badgeY + (size * 0.005));
+      }
+
       return canvas.toDataURL('image/png');
     }
 
-    // Configure Safari Touch Icon, Favicon & Standalone Manifest using valid PNG data
-    function configureAppleTouchIcon() {
+    // Configure Safari Touch Icon, Favicon & Standalone Manifest with dynamic badge count
+    function configureAppleTouchIcon(badgeCount = 0) {
       try {
-        const pngDataUri = generatePngTouchIcon(512);
+        const pngDataUri = generatePngTouchIcon(512, badgeCount);
         if (!pngDataUri) return;
 
         // Set Apple Touch Icon & precomposed links with PNG data URI
@@ -570,6 +630,25 @@
       } catch (err) {
         console.error("Failed to configure touch icon:", err);
       }
+    }
+
+    // Update Home Screen Badge (Native iOS Web App Badging API + Dynamic Icon redraw)
+    function updateAppBadge(openCount) {
+      // 1. Native iOS / Safari PWA Web App Badging API (iOS 16.4+)
+      if ('setAppBadge' in navigator) {
+        if (openCount > 0) {
+          navigator.setAppBadge(openCount).catch((err) => {
+            console.log('App badge error:', err);
+          });
+        } else if ('clearAppBadge' in navigator) {
+          navigator.clearAppBadge().catch((err) => {
+            console.log('Clear badge error:', err);
+          });
+        }
+      }
+
+      // 2. Redraw dynamic raster canvas icon reflecting the red alert box
+      configureAppleTouchIcon(openCount);
     }
 
     // Load user data strictly preserving existing stored entries
@@ -706,6 +785,21 @@
 
       document.getElementById('active-badge').textContent = activeItems.length;
       document.getElementById('log-badge').textContent = settledItems.length;
+
+      // Update in-app Open Items Red Badge
+      const openCount = activeItems.length;
+      const openBadgeEl = document.getElementById('open-items-badge');
+      if (openBadgeEl) {
+        if (openCount > 0) {
+          openBadgeEl.textContent = openCount;
+          openBadgeEl.classList.remove('hidden');
+        } else {
+          openBadgeEl.classList.add('hidden');
+        }
+      }
+
+      // Update Native iOS Home Screen Badge & Dynamic Touch Icon
+      updateAppBadge(openCount);
 
       // Update Settings statistics
       const totalRecordedCount = items.length;
@@ -1063,7 +1157,6 @@
 
     // Initial render on load
     window.addEventListener('DOMContentLoaded', () => {
-      configureAppleTouchIcon();
       render();
     });
   </script>
